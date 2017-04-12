@@ -3,7 +3,7 @@ import re
 import os
 import glob
 import numpy as np
-import RootsAndRainScrape
+import pickle
 
 root_ews_dir = r'C:\EWSData'
 
@@ -224,6 +224,12 @@ def make_master_ews(root_dir=root_ews_dir):
         return df_to_fill
 
     master_df = fill_missing_and_clean(master_df)
+
+    # Make a master rider list just incase we need to scrape the EWS site and match names
+    rider_list_txt = master_df.groupby('name').sum().index.tolist()
+    with open(r'C:\EWSData\Source\riderlist.txt', 'wb') as fp:
+        pickle.dump(rider_list_txt, fp)
+
     master_df.to_csv(os.path.join(root_dir, 'Master.csv'), encoding='utf-8')
 
 
