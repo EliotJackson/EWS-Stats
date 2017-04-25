@@ -18,7 +18,7 @@ def make_master_ews(root_dir=root_ews_dir):
                "sponsor", "factory", "stage1_time", "stage1_position", "stage2_time", "stage2_position", "stage3_time",
                "stage3_position", "stage4_time", "stage4_position", "stage5_time", "stage5_position", "stage6_time",
                "stage6_position", "stage7_time", "stage7_position", "stage8_time", "stage8_position", "finish_time",
-               "time_behind", "penalties", "dnf", "dns", "dsq", "out_at_stage"]
+               "time_behind", "penalties", "dnf", "dns", "dsq", "out_at_stage", "num_stages"]
 
     all_files = glob.glob(os.path.join(root_ews_dir, '**', '*.csv'))
 
@@ -70,10 +70,12 @@ def make_master_ews(root_dir=root_ews_dir):
             # The average time - their time
 
             for year in year_list:
+                print(year)
                 for rnd in round_list:
                     for stage in stage_list:
+
                         current_stage_seconds = 'stage' + stage + '_seconds'
-                        print( year, rnd, stage)
+
                         current_top10 = df_to_fill.query('year == ' + year + ' and round_num == ' + rnd)[current_stage_seconds].nsmallest(10).index.tolist()
 
                         current_round = df_to_fill.query('year == ' + year + ' and round_num == ' + rnd).index
@@ -164,7 +166,7 @@ def make_master_ews(root_dir=root_ews_dir):
                 country = ''
                 city = ''
 
-                # Make sure the rider has done at least one race where sponsors were recorded/the rider was sponsored
+                # Make sure the rider has done at least one race
                 rider_hometown = missing_df.loc[(missing_df['name'] == rider) &
                                                 (missing_df['country'].notnull()),
                                                 'country'].drop_duplicates().tolist()
@@ -188,9 +190,18 @@ def make_master_ews(root_dir=root_ews_dir):
                 missing_df.loc[missing_df['name'] == rider, 'country'] = country
                 missing_df.loc[missing_df['name'] == rider, 'city'] = city
 
+                # If the country is still empty, it was probably a one off race for the rider
+                # so use the location of the race
+                missing_df.loc[(missing_df['name'] == rider) & (missing_df['country'] == ''), 'country'] \
+                    = missing_df.loc[(missing_df['name'] == rider) & (missing_df['country'] == ''), 'round_loc']\
+                        .apply(lambda x: x.split(', ')[-1])
+
+
             return missing_df
 
         def fill_missing_round_country(missing_df):
+
+            print('Filling Missing Round Country...')
 
             # Add the country to the round location
 
@@ -201,7 +212,7 @@ def make_master_ews(root_dir=root_ews_dir):
                               'Zona Zero Ainsa-Sobrarbe': 'Spain', 'Corral, Valdiva': 'Chile',
                               'Cerro Catedral': 'Argentina',
                               'Snowmass Village, CO': 'United States', 'Valberg, Guillaumes': 'France',
-                              'Rotorua': 'New Zealand'}
+                              'Rotorua': 'New Zealand', 'Tasmania': 'Australia'}
 
             def fill_country(x):
                 d = round_loc_dict.get(x, x)
@@ -215,9 +226,10 @@ def make_master_ews(root_dir=root_ews_dir):
             return missing_df
 
 
-        df_to_fill = fill_missing_hometown(df_to_fill)
+
         df_to_fill = fill_missing_sponsors(df_to_fill)
         df_to_fill = fill_missing_round_country(df_to_fill)
+        df_to_fill = fill_missing_hometown(df_to_fill)
         df_to_fill = df_to_fill[columns]
         add_columns()
 
