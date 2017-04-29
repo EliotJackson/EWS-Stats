@@ -52,27 +52,28 @@ def clean_ews_results():
     with open(r'C:\EWSData\Source\Whistler2016Riders.txt', 'rb') as fp:
         whistler_riders = pickle.load(fp)
 
+
     print('Cleaning Whistler Text...')
     whistler_list = []
 
     for rider in whistler_riders.split('\n')[1:-1]:
 
         # Richie Rude	13:01.870	(3)	06:30.790	(42)	04:07.200	(1)	03:24.990	(1)	21:30.800	(1)	48:35.650	(1)
-        rider_details = rider.split()
+        whistler_rider_details = rider.split()
 
         # Last name to uppercase and join first and last name
-        rider_details[1] = rider_details[1].upper()
-        rider_details[0:2] = [' '.join(rider_details[0:2])]
+        whistler_rider_details[1] = whistler_rider_details[1].upper()
+        whistler_rider_details[0:2] = [' '.join(whistler_rider_details[0:2])]
 
         # Check for a 3 word name i.e. Bas Van Steenbergen
-        if any(character.isalpha() for character in rider_details[1]):
-            rider_details[1] = rider_details[1].upper()
-            rider_details[0:2] = [' '.join(rider_details[0:2])]
-        rider_details[0] = unidecode(rider_details[0])
+        if any(character.isalpha() for character in whistler_rider_details[1]):
+            whistler_rider_details[1] = whistler_rider_details[1].upper()
+            whistler_rider_details[0:2] = [' '.join(whistler_rider_details[0:2])]
+        whistler_rider_details[0] = unidecode(whistler_rider_details[0])
 
-        rider_details[2:13:2] = [x.translate(str.maketrans('', '', '()')) for x in rider_details[2:13:2]]
+        whistler_rider_details[2:13:2] = [x.translate(str.maketrans('', '', '()')) for x in whistler_rider_details[2:13:2]]
 
-        whistler_list.append(rider_details)
+        whistler_list.append(whistler_rider_details)
 
     print('Cleaning Rotorua Text')
     rotorua_list = []
@@ -81,77 +82,77 @@ def clean_ews_results():
 
         # 140 David SHEPHARD GBR 15:52.94119. 5:30.62119. 7:26.16117. 7:31.09118.
         #  6:11.25116. 6:15.01113. 11:47.47111. 1:00:34.54112. +25:14.08
-        rider_details = rider.split()
+        rotorua_rider_details = rider.split()
 
         # Get rid of the first placing
-        if re.findall(r'(\.)', rider_details[0]):
-            del rider_details[0]
+        if re.findall(r'(\.)', rotorua_rider_details[0]):
+            del rotorua_rider_details[0]
 
         # Last name to uppercase and join first and last name
-        rider_details[2] = rider_details[2].upper()
-        rider_details[1:3] = [' '.join(rider_details[1:3])]
+        rotorua_rider_details[2] = rotorua_rider_details[2].upper()
+        rotorua_rider_details[1:3] = [' '.join(rotorua_rider_details[1:3])]
 
         # Check if its a second last name or the country code
-        if any(character.isalpha() for character in rider_details[2]) and len(rider_details[2]) != 3:
-            rider_details[2] = rider_details[2].upper()
-            rider_details[1:3] = [' '.join(rider_details[1:3])]
-        rider_details[1] = unidecode(rider_details[1])
+        if any(character.isalpha() for character in rotorua_rider_details[2]) and len(rotorua_rider_details[2]) != 3:
+            rotorua_rider_details[2] = rotorua_rider_details[2].upper()
+            rotorua_rider_details[1:3] = [' '.join(rotorua_rider_details[1:3])]
+        rotorua_rider_details[1] = unidecode(rotorua_rider_details[1])
 
         # Get first split
-        if rider_details[3][-1] == '.':
-            rider_details.insert(4, rider_details[3][-4:])
-            rider_details[3] = rider_details[3][:-4]
+        if rotorua_rider_details[3][-1] == '.':
+            rotorua_rider_details.insert(4, rotorua_rider_details[3][-4:])
+            rotorua_rider_details[3] = rotorua_rider_details[3][:-4]
 
         # Get second split
-        if rider_details[5][-1] == '.':
-            rider_details.insert(6, rider_details[5][-4:])
-            rider_details[5] = rider_details[5][:-4]
+        if rotorua_rider_details[5][-1] == '.':
+            rotorua_rider_details.insert(6, rotorua_rider_details[5][-4:])
+            rotorua_rider_details[5] = rotorua_rider_details[5][:-4]
 
         # Get third split
-        if rider_details[7][-1] == '.':
-            rider_details.insert(8, rider_details[7][-4:])
-            rider_details[7] = rider_details[7][:-4]
+        if rotorua_rider_details[7][-1] == '.':
+            rotorua_rider_details.insert(8, rotorua_rider_details[7][-4:])
+            rotorua_rider_details[7] = rotorua_rider_details[7][:-4]
 
         # Get fourth split
-        if rider_details[9][-1] == '.':
-            rider_details.insert(10, rider_details[9][-4:])
-            rider_details[9] = rider_details[9][:-4]
+        if rotorua_rider_details[9][-1] == '.':
+            rotorua_rider_details.insert(10, rotorua_rider_details[9][-4:])
+            rotorua_rider_details[9] = rotorua_rider_details[9][:-4]
 
-        if len(rider_details) > 11:
+        if len(rotorua_rider_details) > 11:
             # Get fifth split
-            if rider_details[11][-1] == '.':
-                rider_details.insert(12, rider_details[11][-4:])
-                rider_details[11] = rider_details[11][:-4]
+            if rotorua_rider_details[11][-1] == '.':
+                rotorua_rider_details.insert(12, rotorua_rider_details[11][-4:])
+                rotorua_rider_details[11] = rotorua_rider_details[11][:-4]
 
-        if len(rider_details) > 13:
+        if len(rotorua_rider_details) > 13:
             # Get sixth split
-            if rider_details[13][-1] == '.':
-                rider_details.insert(14, rider_details[13][-4:])
-                rider_details[13] = rider_details[13][:-4]
+            if rotorua_rider_details[13][-1] == '.':
+                rotorua_rider_details.insert(14, rotorua_rider_details[13][-4:])
+                rotorua_rider_details[13] = rotorua_rider_details[13][:-4]
 
-        if len(rider_details) > 15:
+        if len(rotorua_rider_details) > 15:
             # Get seventh split
-            if rider_details[15][-1] == '.':
-                rider_details.insert(16, rider_details[15][-4:])
-                rider_details[15] = rider_details[15][:-4]
+            if rotorua_rider_details[15][-1] == '.':
+                rotorua_rider_details.insert(16, rotorua_rider_details[15][-4:])
+                rotorua_rider_details[15] = rotorua_rider_details[15][:-4]
 
-        if len(rider_details) > 17:
+        if len(rotorua_rider_details) > 17:
             # Get seventh split
-            if rider_details[17][-1] == '.':
-                rider_details.insert(18, rider_details[17][-4:])
-                rider_details[17] = rider_details[17][:-4]
+            if rotorua_rider_details[17][-1] == '.':
+                rotorua_rider_details.insert(18, rotorua_rider_details[17][-4:])
+                rotorua_rider_details[17] = rotorua_rider_details[17][:-4]
 
         # Get rid of the . after split position
-        rider_details[4:19:2] = [x.replace('.', '') for x in rider_details[4:19:2]]
+        rotorua_rider_details[4:19:2] = [x.replace('.', '') for x in rotorua_rider_details[4:19:2]]
 
         # Remove the + from Time behind: +12.73
         # 6969 indicates a NaN that I added manually
-        if len(rider_details[-5]) > 3 and rider_details[-5] != '6969':
-            rider_details[-5] = rider_details[-5][1:]
+        if len(rotorua_rider_details[-5]) > 3 and rotorua_rider_details[-5] != '6969':
+            rotorua_rider_details[-5] = rotorua_rider_details[-5][1:]
 
-        rotorua_list.append(rider_details)
+        rotorua_list.append(rotorua_rider_details)
 
-        return whistler_list, rotorua_list
+    return whistler_list, rotorua_list
 
 def whistler_name_match(whistler_list, master_rider_list):
     print('Matching Whistler Names...')
