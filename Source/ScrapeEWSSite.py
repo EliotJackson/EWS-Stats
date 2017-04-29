@@ -8,6 +8,8 @@ import pickle
 from glob import glob
 
 '''
+ScrapeEWSSite.py
+
 Sometime results don't show up on the Roots and Rain site, but they are on the EWS Site.
 We have to lean them all separately because they are in different formats
 We also have to match the names to the Roots and Rain text so that we have consistent people
@@ -42,7 +44,6 @@ def make_master_rider_list():
             name_list = pickle.load(fp)
 
     return name_list
-
 
 
 def clean_ews_results():
@@ -256,7 +257,7 @@ def rotorua_name_match(rotorua_list, master_rider_list):
     rotorua_df["penalties"] = ''
     rotorua_df["num_stages"] = 7
 
-    # 6969 is manually inputed NaN
+    # 6969 is a manually inputed NaN
     rotorua_df.replace('6969', '', inplace=True)
 
     os.makedirs(r'C:\EWSData\Rotorua 2015', exist_ok=True)
