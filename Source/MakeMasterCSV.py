@@ -109,12 +109,8 @@ def make_master_ews(root_dir=root_ews_dir):
             df_to_fill['overall_points'] = 0
             df_to_fill['overall_time'] = datetime.timedelta(0)
 
-            # Add the two columns together with a space in the middle. Year is a number so we have to turn it into
-            # a string (words) before we can add it. lambda is a funciton, its read like "for each item in name, add a
-            # a space and add it to the corresponding item in year on axis 1 ( across)
-            df_to_fill['name_year'] = df_to_fill.apply(lambda x: x['name'] + ' ' + str(x['year']), axis=1)
 
-            # Make our pivot table
+            df_to_fill['name_year'] = df_to_fill.apply(lambda x: x['name'] + ' ' + str(x['year']), axis=1)
             new_pivot = df_to_fill.pivot('name_year', 'round_num', 'round_num')
 
             '''
@@ -126,14 +122,6 @@ def make_master_ews(root_dir=root_ews_dir):
             Aaron BRADFORD 2015          NaN  NaN  NaN  NaN  NaN  6.0  NaN  NaN
             Aaron BRADFORD 2016          NaN  NaN  NaN  NaN  5.0  6.0  NaN  NaN
             '''
-
-            # Apply applies whatever is in the ( ) to every row in the dataset
-            # ','.join() joins items using a comma
-            # x.dropna() drops all of the NaN values
-            # astype(str) converts the numbers to "letters" so they can be joined to the commas
-            # values gets the values in the cells
-            # replace gets ride of the '.0'. This means it a float, or decimal type, we trned it into a string
-            # which means we can replace letters with other letters (hacky :P)
             new_pivot = new_pivot.apply(lambda x: ','.join(x.dropna().astype(str).values).replace('.0', ''), axis=1)
 
             '''
@@ -144,15 +132,9 @@ def make_master_ews(root_dir=root_ews_dir):
             Aaron BRADFORD 2015                        6
             Aaron BRADFORD 2016                      5,6
             '''
-
-            # The one line that took me forever to figure out :P
-            # Map does the same thing as apply not sure the difference. Apply doesnt work here though.
-            # Were saying wherever the original column has Aaron BRADFORD 2013, get the value for that in the new_pivot
-            # Dataset
             df_to_fill['name_year1'] = df_to_fill['name_year'].map(new_pivot)
 
             '''
-
             Add Overall Points Per Race
             '''
             def get_round_points(x):
@@ -177,26 +159,6 @@ def make_master_ews(root_dir=root_ews_dir):
 
             df_to_fill['points'] = df_to_fill.loc[:, 'finish_position'].apply(lambda x: get_round_points(x))
 
-
-
-
-
-            # Non loop overall
-            new_pivot2 = (df_to_fill.pivot('name_year', 'round_num', 'points')
-                                    #.fillna(0)
-                                    .apply(lambda x: x.cumsum(), axis=1))
-            df_to_fill.drop('name_year', axis=1, inplace=True)
-
-            #new_pivot2.apply(lambda x: x.cumsum(), axis=1)
-            #new_pivot2 = new_pivot2.unstack().reset_index()
-
-            #df_to_fill['over'] = df_to_fill['name_year_rnd'].map(new_pivot2[0])
-
-            #print(new_pivot2)
-
-
-            p = df_to_fill.groupby(['year', 'name'])['points'].apply(lambda x: x.cumsum())
-            print(p)
             print('Add Two-Day Race Info...')
             df_to_fill['two_day_race'] = False
 
