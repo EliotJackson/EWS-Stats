@@ -48,7 +48,7 @@ def getlinks(original_url=ews_url, series='ews'):
         return links
 
 
-def get_ews_results(url):
+def get_ews_results(url, sex='m'):
     """
 
     :param url: URL of race
@@ -95,7 +95,11 @@ def get_ews_results(url):
                "stage7_time", "stage7_position", "stage8_time", "stage8_position", "finish_time",
                "time_behind", "penalties", "dnf", "dns", "dsq", "out_at_stage", "num_stages"]
 
-    url = 'https://www.rootsandrain.com' + url
+    if sex == 'm':
+        url = 'https://www.rootsandrain.com' + url
+    else:
+        url = 'https://www.rootsandrain.com' + url + 'results/filters/f/'
+    print(url)
     url = urlopen(url)
     soup = bs4.BeautifulSoup(url, 'lxml')
 
@@ -106,12 +110,19 @@ def get_ews_results(url):
     ews_round_loc = unidecode(page_title.split(' at ')[1])
     print('Getting results for {0} round number {1} in {2}'.format(ews_round_loc, ews_round_num, ews_year))
 
-    # Split the Men's table by member
+    # Split the table by member
     results_table = str(soup.find_all('tbody')[0]).split('<tr')
 
-    # Make sure we don't have the wrong results list
-    if len(results_table) < 60:
-        results_table = str(soup.find_all('tbody')[1]).split('<tr')
+    # Make sure we don't have the wrong results list if its men's
+    if sex == 'm':
+        if len(results_table) < 60:
+            results_table = str(soup.find_all('tbody')[1]).split('<tr')
+    else:
+        for table in range(10):
+            results_table = str(soup.find_all('tbody')[table]).split('<tr')
+            if len(results_table) > 11:
+                break
+
 
     # Omit the columns element
     results_table = results_table[1:]
@@ -395,16 +406,21 @@ def get_ews_results(url):
     rider_df = pd.DataFrame(stats_list).T
     rider_df.columns = columns
 
-    os.makedirs(os.path.join(r'C:\EWSData', ews_round_loc + ' ' + str(ews_year)), exist_ok=True)
-    rider_df.to_csv(os.path.join(r'C:\EWSData', ews_round_loc + ' ' + str(ews_year), 'Results.csv'), encoding='utf-8')
+    if sex == 'm':
+        os.makedirs(os.path.join(r'C:\EWSData', ews_round_loc + ' ' + str(ews_year)), exist_ok=True)
+        rider_df.to_csv(os.path.join(r'C:\EWSData', ews_round_loc + ' ' + str(ews_year), 'Results.csv'), encoding='utf-8')
+    else:
+        os.makedirs(os.path.join(r'C:\EWSData\Womens', ews_round_loc + ' ' + str(ews_year)), exist_ok=True)
+        rider_df.to_csv(os.path.join(r'C:\EWSData\Womens', ews_round_loc + ' ' + str(ews_year), 'Results.csv'),
+                        encoding='utf-8')
 
 
-def all_results():
+def all_results(sex='m'):
     for link_idx, link in enumerate(getlinks()):
         if link_idx >= 0:
-            get_ews_results(link)
+            get_ews_results(link, sex)
 
 
-all_results()
+all_results(sex='f')
 #get_ews_results('/race3927/2016-sep-18-enduro-world-series-7-valberg-guillaumes/results/')
 
