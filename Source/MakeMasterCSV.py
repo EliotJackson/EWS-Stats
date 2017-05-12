@@ -9,7 +9,7 @@ import datetime as datetime
 root_ews_dir = r'C:\EWSData'
 
 
-def make_master_ews(root_dir=root_ews_dir):
+def make_master_ews(root_dir=root_ews_dir, sex='m'):
     """
     Make a master list off all EWS results
     :param root_dir: Directory to walk and export master list to
@@ -28,8 +28,11 @@ def make_master_ews(root_dir=root_ews_dir):
                "stage3_position", "stage4_time", "stage4_position", "stage5_time", "stage5_position", "stage6_time",
                "stage6_position", "stage7_time", "stage7_position", "stage8_time", "stage8_position", "finish_time",
                "time_behind", "penalties", "dnf", "dns", "dsq", "out_at_stage", "num_stages"]
+    if sex =='m':
+        all_files = glob.glob(os.path.join(root_ews_dir, '**', '*.csv'))
+    else:
+        all_files = glob.glob(os.path.join(root_ews_dir, 'Womens', '**', '*.csv'))
 
-    all_files = glob.glob(os.path.join(root_ews_dir, '**', '*.csv'))
 
     df_from_files = [pd.read_csv(file) for file in all_files]
 
@@ -341,8 +344,6 @@ def make_master_ews(root_dir=root_ews_dir):
                             df_to_fill.loc[current_race_indexes, 'stage' + stage + '_top10avg'] = average_of_top_10
 
 
-
-        add_columns()
         def fill_missing_sponsors(missing_df):
             """
             Sometime the sponsors aren't recorded for a race. We assume a rider is under a year contract and
@@ -491,11 +492,15 @@ def make_master_ews(root_dir=root_ews_dir):
 
     # Make a master rider list just incase we need to scrape the EWS site and match names
     rider_list_txt = master_df.groupby('name').sum().index.tolist()
-    with open(r'C:\EWSData\Source\riderlist.txt', 'wb') as fp:
-        pickle.dump(rider_list_txt, fp)
 
-    master_df.to_csv(os.path.join(root_dir, 'Master.csv'), encoding='utf-8')
+    if sex == 'm':
+        master_df.to_csv(os.path.join(root_dir, 'Master.csv'), encoding='utf-8')
+        with open(r'C:\EWSData\Source\riderlist.txt', 'wb') as fp:
+            pickle.dump(rider_list_txt, fp)
+    else:
+        master_df.to_csv(os.path.join(root_dir, 'WomenMaster.csv'), encoding='utf-8')
+        with open(r'C:\EWSData\Source\riderlistwomen.txt', 'wb') as fp:
+            pickle.dump(rider_list_txt, fp)
 
 
-
-make_master_ews()
+make_master_ews(sex='f')
