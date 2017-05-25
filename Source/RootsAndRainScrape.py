@@ -36,7 +36,7 @@ def getlinks(original_url=ews_url, series='ews'):
         print('Getting link {0} of {1}'.format(item_idx, len(event_list)))
 
         # Get the 5th item in the row ( Date, Race, Venue, Competitors, Men's Time, Women's Time )
-        competitors_len = len(str(event_list[item_idx]).split('<td>')[4])
+        competitors_len = len(str(event_list[item_idx]).split('<td>')[3])
 
         if 6 < competitors_len < 16:
             links.append(event_list[item_idx].a['href'])
@@ -99,6 +99,7 @@ def get_ews_results(url, sex='m'):
         url = 'https://www.rootsandrain.com' + url
     else:
         url = 'https://www.rootsandrain.com' + url + 'results/filters/f/'
+
     print(url)
     url = urlopen(url)
     soup = bs4.BeautifulSoup(url, 'lxml')
@@ -113,7 +114,7 @@ def get_ews_results(url, sex='m'):
     # Split the table by member
     results_table = str(soup.find_all('tbody')[0]).split('<tr')
 
-    # Make sure we don't have the wrong results list if its men's
+    # Make sure we don't have the wrong results list
     if sex == 'm':
         if len(results_table) < 60:
             results_table = str(soup.find_all('tbody')[1]).split('<tr')
@@ -127,6 +128,7 @@ def get_ews_results(url, sex='m'):
     # Omit the columns element
     results_table = results_table[1:]
     rider_result_list = [re.findall('>(.*?)</td>', rider) for rider in results_table]
+
     print(str(len(results_table)) + ' Riders')
 
     # Get the text of all of the columns in the table header.
@@ -168,13 +170,13 @@ def get_ews_results(url, sex='m'):
             rider.remove(rider[3])
 
         # If there is no text then the rider DNF'd, DNS'd or DSQ
-        if len(rider[0].split('<td>')[1]) < 1:
+        if len(rider[0].split('>')[-1]) < 1:
             if disqualified:
-                finish_position.append(rider[0].split('<td>')[1].replace('', 'DSQ'))
+                finish_position.append(rider[0].split('>')[-1].replace('', 'DSQ'))
             else:
-                finish_position.append(rider[0].split('<td>')[1].replace('', 'DNF'))
+                finish_position.append(rider[0].split('>')[-1].replace('', 'DNF'))
         else:
-            finish_position.append(int(rider[0].split('<td>')[1]))
+            finish_position.append(int(rider[0].split('>')[-1]))
         overall_position.append(rider[1])
 
         if 'Unknown' in rider[2]:
@@ -421,6 +423,6 @@ def all_results(sex='m'):
             get_ews_results(link, sex)
 
 
-all_results(sex='f')
+all_results()
 #get_ews_results('/race3927/2016-sep-18-enduro-world-series-7-valberg-guillaumes/results/')
 
