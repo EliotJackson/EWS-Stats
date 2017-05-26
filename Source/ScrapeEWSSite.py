@@ -14,6 +14,8 @@ We also have to match the names to the Roots and Rain text so that we have consi
 As more results are omitted from Roots and Rain they will be added here in the same format
 '''
 
+# ToDo: add stage 9
+
 def make_master_rider_list(sex='m'):
     """
     Make sure we only get names from roots and rain.
@@ -227,6 +229,8 @@ def whistler_name_match(whistler_list, master_rider_list, sex='m'):
     # Our names arent that different so we can just use the name from the first algorithm
     # and average out the predictions to get out new name i.e. Richie Rude turns into Richie Rude Jr.
     for name_idx, name in enumerate(names):
+        print('Matching Name:', name_idx, ' of ', len(names))
+
         matched_name, score1 = process.extractOne(name, master_rider_list, scorer=fuzz.ratio)
         _, score2 = process.extractOne(name, master_rider_list, scorer=fuzz.partial_ratio)
         _, score3 = process.extractOne(name, master_rider_list, scorer=fuzz.token_set_ratio)
@@ -259,6 +263,8 @@ def whistler_name_match(whistler_list, master_rider_list, sex='m'):
     whistler_df["stage6_position"] = 'Not Raced'
     whistler_df["stage7_time"] = 'Not Raced'
     whistler_df["stage7_position"] = 'Not Raced'
+    whistler_df["stage9_time"] = 'Not Raced'
+    whistler_df["stage9_position"] = 'Not Raced'
     whistler_df["time_behind"] = ''
     whistler_df["dnf"] = False
     whistler_df["dns"] = False
@@ -277,7 +283,7 @@ def whistler_name_match(whistler_list, master_rider_list, sex='m'):
     # Remove days and hours and milliseconds i.e. 0 days 00:00:07.130000
     whistler_df['time_behind'] = whistler_df['time_behind'].apply(lambda x: str(x)[10:])
     whistler_df['time_behind'] = whistler_df['time_behind'].apply(lambda x: x[:-4]
-            if x[-4:] == '0000' and len(x) > 1 else x + '.00')
+                                                                  if x[-4:] == '0000' and len(x) > 1 else x + '.00')
 
     # If there are no minutes just get the seconds
     whistler_df['time_behind'] = whistler_df['time_behind'].apply(lambda x: x[3:] if x[:3] == '00:' else x)
@@ -303,6 +309,8 @@ def rotorua_name_match(rotorua_list, master_rider_list, sex='m'):
     # Our names arent that different so we can just use the name from the first algorithm
     # and average out the predictions to get out new name i.e. Richie Rude turns into Richie Rude Jr.
     for name_idx, name in enumerate(names):
+        print('Matching Name:', name_idx, ' of ', len(names))
+
         matched_name, score1 = process.extractOne(name, master_rider_list, scorer=fuzz.ratio)
         _, score2 = process.extractOne(name, master_rider_list, scorer=fuzz.partial_ratio)
         _, score3 = process.extractOne(name, master_rider_list, scorer=fuzz.token_set_ratio)
@@ -326,6 +334,8 @@ def rotorua_name_match(rotorua_list, master_rider_list, sex='m'):
     rotorua_df['round_loc'] = 'Rotorua, New Zealand'
     rotorua_df["stage8_time"] = 'Not Raced'
     rotorua_df["stage8_position"] = 'Not Raced'
+    rotorua_df["stage9_time"] = 'Not Raced'
+    rotorua_df["stage9_position"] = 'Not Raced'
     rotorua_df["penalties"] = ''
     rotorua_df["num_stages"] = 7
     rotorua_df["stages_raced"] = '1, 2, 3, 4, 5, 6, 7'
