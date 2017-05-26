@@ -6,8 +6,12 @@ import numpy as np
 import pickle
 import datetime as datetime
 
+#pd.set_option('display.max_colwidth', -1)
+pd.set_option('display.max_rows', -1)
+
 root_ews_dir = r'C:\EWSData'
 
+# ToDo: Compare cumulative stage time to finish time
 
 def make_master_ews(root_dir=root_ews_dir):
     """
@@ -51,8 +55,7 @@ def make_master_ews(root_dir=root_ews_dir):
         year_list = ['2013', '2014', '2015', '2016', '2017']
         round_list = ['1', '2', '3', '4', '5', '6', '7', '8']
         stage_list = ['1', '2', '3', '4', '5', '6', '7', '8']
-
-        def to_delta(race_time):
+        def to_delta1(race_time):
             """
             Convert any time we have in out dataframe to timedelta format
 
@@ -95,6 +98,86 @@ def make_master_ews(root_dir=root_ews_dir):
                         ms = 0
 
                 delta = datetime.timedelta(hours=hrs, minutes=mins, seconds=secs, milliseconds=ms)
+                print(delta)
+            else:
+
+                delta = datetime.timedelta(1)
+
+            return delta
+
+        def to_delta(race_time):
+            """
+            Convert any time we have in out dataframe to timedelta format
+
+            :param race_time: Time to convert
+            :return: Timedelta
+            """
+
+            race_time = str(race_time)
+
+            # Check for 'Not Raced', if we get it set timedelta to 1 day to for easy identification
+            # NaN values are set to 0 timedelta for identification
+            if not any(character.isalpha() for character in race_time):
+                if race_time.count(':') > 1:
+                    # '2:43:20.334'
+                    mins = int(race_time.split(':')[1])
+                    hrs = int(race_time.split(':')[0])
+                    secs = int(race_time.split(':')[-1].split('.')[0])
+                    ms = race_time.split('.')[1]
+
+                    # Incase we have a 2:04.1 situation
+                    if len(ms) == 1:
+                        ms = int(ms + '00')
+                    elif len(ms) == 2:
+                        ms = int(ms + '0')
+                    else:
+                        ms = int(ms)
+
+                elif race_time.count(':') == 1:
+                    # '43:20.334'
+                    hrs = 0
+                    mins = int(race_time.split(':')[0])
+                    secs = int(race_time.split(':')[-1].split('.')[0])
+                    ms = race_time.split('.')[1]
+
+                    # In case we have a 2:04.1 situation
+                    if len(ms) == 1:
+                        ms = int(ms + '00')
+                    elif len(ms) == 2:
+                        ms = int(ms + '0')
+                    else:
+                        ms = int(ms)
+
+                elif (race_time.count(':') == 0) & (race_time.count('.') == 1):
+                    # '20.334'
+                    hrs = 0
+                    mins = 0
+                    secs = int(race_time.split('.')[0])
+                    ms = race_time.split('.')[1]
+
+                    # In case we have a 2:04.1 situation
+                    if len(ms) == 1:
+                        ms = int(ms + '00')
+                    elif len(ms) == 2:
+                        ms = int(ms + '0')
+                    else:
+                        ms = int(ms)
+
+                elif race_time == 'nan':
+                    # Penalty or DNF
+                    hrs = 0
+                    mins = 0
+                    secs = 0
+                    ms = 0
+
+                else:
+                    # '0'
+                    hrs = 0
+                    mins = 0
+                    secs = int(race_time)
+                    ms = 0
+
+                delta = datetime.timedelta(hours=hrs, minutes=mins, seconds=secs, milliseconds=ms)
 
             else:
 
@@ -102,17 +185,51 @@ def make_master_ews(root_dir=root_ews_dir):
 
             return delta
 
+
         def add_columns():
             """
             Add any extra features we need for analysis
             """
-            df_to_fill['overall_points'] = 0
-            df_to_fill['overall_time'] = datetime.timedelta(0)
+            df_to_fill.loc[:, 'overall_points'] = 0
+            df_to_fill.loc[:, 'overall_time'] = datetime.timedelta(0)
 
+            print('Converting to Timedelta...')
+            # Convert any times we have to timedelta
+            for stage_num in stage_list:
+                df_to_fill.loc[:, 'stage' + stage_num + '_time'] = \
+                    df_to_fill.loc[:, 'stage' + stage_num + '_time'].apply(lambda x: to_delta(x))
+            df_to_fill.loc[:, 'finish_time'] = df_to_fill.loc[:, 'finish_time'].apply(lambda x: to_delta(x))
+            df_to_fill.loc[:, 'time_behind'] = df_to_fill.loc[:, 'time_behind'].apply(lambda x: to_delta(x))
+            df_to_fill.loc[:, 'penalties'] = df_to_fill.loc[:, 'penalties'].apply(lambda x: to_delta(x))
+
+
+            print('Adding Gap and Average Time of Top 10 Columns...')
+            '''
+            Get the average of the top 10 fastest stage times and compute the time gap from that for each rider
+            '''
+            for stage in stage_list:
+                current_stage = 'stage' + stage + '_time'
+                top_10 = 'stage' + stage + '_top10avg'
+                gap = 'stage' + stage + '_gap'
+
+                top_10_times = df_to_fill.loc[df_to_fill[current_stage] != '00:00:00']\
+                    .groupby(['year', 'round_num'])[current_stage].nsmallest(10).reset_index()
+
+                df_to_fill.loc[:, top_10] = top_10_times.groupby(['year', 'round_num'])[current_stage]\
+                    .transform(lambda x: np.mean(x))
+
+                df_to_fill[top_10].fillna(datetime.timedelta(0), inplace=True)
+
+                df_to_fill.loc[:, gap] = df_to_fill[current_stage] - df_to_fill[top_10]
+
+            print('Rounds Raced')
+            '''
+            Rounds Raced
+            '''
             # Add the two columns together with a space in the middle. Year is a number so we have to turn it into
             # a string (words) before we can add it. lambda is a funciton, its read like "for each item in name, add a
             # a space and add it to the corresponding item in year on axis 1 ( across)
-            df_to_fill['name_year'] = df_to_fill.apply(lambda x: x['name'] + ' ' + str(x['year']), axis=1)
+            df_to_fill.loc[:, 'name_year'] = df_to_fill.apply(lambda x: x['name'] + ' ' + str(x['year']), axis=1)
 
             # Make our pivot table
             new_pivot = df_to_fill.pivot('name_year', 'round_num', 'round_num')
@@ -149,38 +266,86 @@ def make_master_ews(root_dir=root_ews_dir):
             # Map does the same thing as apply not sure the difference. Apply doesnt work here though.
             # Were saying wherever the original column has Aaron BRADFORD 2013, get the value for that in the new_pivot
             # Dataset
-            df_to_fill['name_year1'] = df_to_fill['name_year'].map(new_pivot)
+            df_to_fill.loc[:, 'rounds_raced'] = df_to_fill['name_year'].map(new_pivot)
+            df_to_fill.drop('name_year', axis=1, inplace=True)
 
+            print('Rounds Missed')
             '''
+            Rounds Missed
+            '''
+            for year in year_list:
+                year = int(year)
+                rnd_list = df_to_fill.loc[df_to_fill['year'] == year, 'round_num'].unique()
 
+                def get_not_raced(raced, rounds):
+                    rounds_done = []
+                    for done in rounds:
+                        if len(raced) > 1:
+                            if str(done) not in raced.split(','):
+                                rounds_done.append(str(done))
+                        else:
+                            if str(done) not in raced:
+                                rounds_done.append(str(done))
+
+                    return ','.join(rounds_done)
+
+                df_to_fill.loc[df_to_fill['year'] == year, 'not_raced'] = \
+                    df_to_fill.loc[df_to_fill['year'] == year, 'rounds_raced'].apply(get_not_raced, rounds=rnd_list)
+
+            print('Add Overall Points')
+            '''
             Add Overall Points Per Race
             '''
-            def get_round_points(x):
-                if x == 1:
-                    points = 500
-                elif x == 2:
-                    points = 450
-                elif x == 3:
-                    points = 420
-                elif x == 4:
-                    points = 400
-                elif 4 < x <= 29:
-                    points = 440 - x * 10
-                elif 29 < x <= 49:
-                    points = 295 - x * 5
-                elif 49 < x < 100:
-                    points = 99 - x
+            def get_round_points(x, series_year):
+                if series_year == 2013:
+                    if x == 1:
+                        points = 600
+                    elif x == 2:
+                        points = 500
+                    elif x == 3:
+                        points = 420
+                    elif x == 4:
+                        points = 360
+                    elif x == 5:
+                        points = 300
+                    elif x == 6:
+                        points = 260
+                    elif 6 < x <= 9:
+                        points = 380 - x * 20
+                    elif 9 < x <= 16:
+                        points = 290 - x * 10
+                    elif 16 < x <= 31:
+                        points = 162 - x * 2
+                    elif 31 < x <= 131:
+                        points = 131 - x
+                    else:
+                        points = 0
+
                 else:
-                    points = 0
+                    if x == 1:
+                        points = 500
+                    elif x == 2:
+                        points = 450
+                    elif x == 3:
+                        points = 420
+                    elif x == 4:
+                        points = 400
+                    elif 4 < x <= 29:
+                        points = 440 - x * 10
+                    elif 29 < x <= 49:
+                        points = 295 - x * 5
+                    elif 49 < x < 100:
+                        points = 99 - x
+                    else:
+                        points = 0
 
                 return points
 
-            df_to_fill['points'] = df_to_fill.loc[:, 'finish_position'].apply(lambda x: get_round_points(x))
+            # Get the year and finish position so we can use the correct points scale
+            df_to_fill.loc[:, 'points'] = df_to_fill.loc[:, ['finish_position', 'year']].apply\
+                (lambda x: get_round_points(x['finish_position'], x['year']), axis=1)
 
-
-
-
-
+            '''
             # Non loop overall
             new_pivot2 = (df_to_fill.pivot('name_year', 'round_num', 'points')
                                     #.fillna(0)
@@ -193,12 +358,14 @@ def make_master_ews(root_dir=root_ews_dir):
             #df_to_fill['over'] = df_to_fill['name_year_rnd'].map(new_pivot2[0])
 
             #print(new_pivot2)
-
+            '''
             # No loop overall points
-            p = df_to_fill.groupby(['year', 'name'])['points'].apply(lambda x: x.cumsum())
-            print(p)
+            #p = df_to_fill.groupby(['year', 'name'])['points'].apply(lambda x: x.cumsum())
+            # print(p)
+
+
             print('Add Two-Day Race Info...')
-            df_to_fill['two_day_race'] = False
+            df_to_fill.loc[:, 'two_day_race'] = False
 
             def stages_per_day(x, day):
                 # Get the number of stages per day by the number of total stages
@@ -220,25 +387,16 @@ def make_master_ews(root_dir=root_ews_dir):
                     return int(day2)
 
             for race in two_day_races:
-                year = race[0]
+                yr = race[0]
                 rnd = race[1]
 
-                race_df = (df_to_fill['year'] == year) & (df_to_fill['round_num'] == rnd)
+                race_df = (df_to_fill['year'] == yr) & (df_to_fill['round_num'] == rnd)
                 df_to_fill.loc[race_df, 'two_day_race'] = True
 
                 df_to_fill.loc[race_df, 'day1'] = df_to_fill.loc[race_df, 'num_stages'].apply(
                         lambda x: stages_per_day(x, 1))
                 df_to_fill.loc[race_df, 'day2'] = df_to_fill.loc[race_df, 'num_stages'].apply(
                         lambda x: stages_per_day(x, 2))
-
-            print('Converting to Timedelta...')
-            # Convert any times we have to timedelta
-            for stage_num in stage_list:
-                df_to_fill['stage' + stage_num + '_time'] = \
-                    df_to_fill.loc[:, 'stage' + stage_num + '_time'].apply(lambda x: to_delta(x))
-            df_to_fill['finish_time'] = df_to_fill.loc[:, 'finish_time'].apply(lambda x: to_delta(x))
-            df_to_fill['time_behind'] = df_to_fill.loc[:, 'time_behind'].apply(lambda x: to_delta(x))
-            df_to_fill['penalties'] = df_to_fill.loc[:, 'penalties'].apply(lambda x: to_delta(x))
 
             print('Add Current Race Position Throughout Day...')
             # Add current position columns
@@ -249,28 +407,19 @@ def make_master_ews(root_dir=root_ews_dir):
                     return datetime.timedelta(0)
                 else:
                     return x
+
+            # Add running total time for each rider throughout the day
             for stage_num in stage_list:
                 total_time += df_to_fill['stage' + stage_num + '_time']
-                df_to_fill['time_after_' + stage_num] = total_time.apply(lambda x: stage_not_raced(x))
+                df_to_fill.loc[:, 'time_after_' + stage_num] = total_time.apply(lambda x: stage_not_raced(x))
 
+            # Add position columns after the time column
             for stage in stage_list:
                 df_to_fill.insert(df_to_fill.columns.get_loc('time_after_' + stage) + 1,
                                   'position_after_' + stage, df_to_fill.index)
 
-            print('Adding Gap and Average Time of Top 10 Columns...')
-            # Get the average of the top 10 fastest stage times and compute the time gap from that for each rider
-
-
-
             for year in year_list:
                 print('For', year)
-
-                # TODO: Overall
-                # init counter variable
-                # Dataframe with riderlist, rider as index timedelta(0) as value under column finishtime
-                #use finish position to calculate points
-
-                # Watch out for riders who havent does entire ews history
 
                 overall_time_df = pd.DataFrame(datetime.timedelta(0), rider_list, ['overall_time'])
                 overall_points_df = pd.DataFrame(0, rider_list, ['overall_points'])
@@ -278,19 +427,6 @@ def make_master_ews(root_dir=root_ews_dir):
                 for rnd in round_list:
                     print('Round',rnd)
 
-                    '''
-                    Missed Rounds
-                    '''
-                    # TODO: Get missed round working
-                    # Get a list of all riders for that year
-                    # check the list of riders in that round against the total list
-
-                    year_rider_list = df_to_fill.loc[df_to_fill['year'] == int(year), 'name'].unique()
-                    round_rider_list = df_to_fill.loc[(df_to_fill['year'] == int(year)) &
-                                                      (df_to_fill['round_num'] == int(rnd)), 'name'].unique()
-
-
-                    # TODO: Get overall time and points throughout the year working.
                     '''
                     Get series points and series overall time.
                     '''
@@ -305,13 +441,13 @@ def make_master_ews(root_dir=root_ews_dir):
                             overall_type_df[column] += overall[overall_type]
                             overall_type_df.fillna(0, inplace=True)
 
-                            raced = df_to_fill.index
+                            original_index = df_to_fill.index
                             names = df_to_fill['name']
 
                             df_to_fill.set_index('name', inplace=True)
                             df_to_fill.loc[(df_to_fill['year'] == int(year)) & (df_to_fill['round_num'] == int(rnd)),
                                            column] += overall_type_df[column]
-                            df_to_fill.set_index(raced, inplace=True)
+                            df_to_fill.set_index(original_index, inplace=True)
                             df_to_fill.loc[:, 'name'] = names
 
                     overall_info(overall_points_df, 'points', 'overall_points')
@@ -340,45 +476,24 @@ def make_master_ews(root_dir=root_ews_dir):
 
                         if len(stage_overall.iloc[:, -1]) > 0:
                             # Round was raced
-                            #print(stage_overall.iloc[:, :])
-                            p =  0
                             if stage_overall.iloc[1, -1] != datetime.timedelta(2):
                                 # Stage was raced
                                 df_to_fill.loc[stage_overall['index'], 'position_after_' + stage] = stage_overall.index + 1
                             else:
                                 df_to_fill.loc[stage_overall['index'], 'position_after_' + stage] = 0
 
-                        '''
-                        Gap and Top 10 Average
-                        '''
-                        current_stage_times = 'stage' + stage + '_time'
 
-                        top_10_times = df_to_fill.loc[
-                            (df_to_fill['year'] == int(year)) & (df_to_fill['round_num'] == int(rnd)),
-                            current_stage_times].nsmallest(10).index.tolist()
+            '''
+            Overall Position Throughout the Year
+            '''
+            df_to_fill.loc[:, 'overall_position1'] = df_to_fill\
+                .sort_values(['year', 'round_num', 'overall_points'], ascending=[1, 1, 0])\
+                .groupby(['year', 'round_num']).cumcount() + 1
 
-                        current_race_indexes = df_to_fill.loc[
-                            (df_to_fill['year'] == int(year)) & (df_to_fill['round_num'] == int(rnd))].index
-
-                        rider_times = df_to_fill.loc[current_race_indexes, current_stage_times]
-                        average_of_top_10 = df_to_fill.loc[top_10_times, current_stage_times].mean()
-
-                        if not all(pd.isnull(rider_times)):
-
-                            def rider_dnf(x):
-                                # If the timedelta is 0 that means the rider didn't finish the race or stage.
-                                if x == datetime.timedelta(0):
-                                    return datetime.timedelta(0)
-                                else:
-                                    return x
-
-                            time_gap = rider_times - average_of_top_10
-
-                            df_to_fill.loc[current_race_indexes, 'stage' + stage + '_gap'] = \
-                                time_gap.apply(lambda x: rider_dnf(x))
-                            df_to_fill.loc[current_race_indexes, 'stage' + stage + '_top10avg'] = average_of_top_10
-
-
+            df_to_fill.loc[:, 'dif'] = df_to_fill.apply(lambda x: x['finish_time'] - x['time_after_' + str(x['num_stages'])], axis=1)
+            df_to_fill.loc[:, 'last'] = df_to_fill.apply(lambda x: x['time_after_' + str(x['num_stages'])], axis=1)
+            #pop = df_to_fill.apply(lambda x: x['time_after_' + str(x['num_stages'])], axis=1)
+            print(df_to_fill.loc[df_to_fill['dif'] != datetime.timedelta(0), ['dif', 'last', 'finish_time']])
 
         add_columns()
         def fill_missing_sponsors(missing_df):
@@ -391,7 +506,16 @@ def make_master_ews(root_dir=root_ews_dir):
             :param missing_df: Dataframe to replace
             :return: Dataframe with sponsor NaN's replaced and
             """
-
+            '''
+            No Loop Fill
+            def de_dup(items):
+                #print(items)
+                lst = list(items)
+                new_list = set(lst)
+                new_list = [x for x in new_list if not pd.isnull(x)]
+                return new_list
+            p = missing_df.groupby('name')['sponsor'].apply(de_dup)
+            '''
             print('Filling Missing Sponsors...')
 
             for rider in rider_list:
@@ -452,7 +576,6 @@ def make_master_ews(root_dir=root_ews_dir):
 
             for rider in rider_list:
 
-
                 country = ''
                 city = ''
 
@@ -460,6 +583,7 @@ def make_master_ews(root_dir=root_ews_dir):
                 rider_hometown = missing_df.loc[(missing_df['name'] == rider) &
                                                 (missing_df['country'].notnull()),
                                                 'country'].drop_duplicates().tolist()
+
                 for location in rider_hometown:
                     if ',' in location:
                         # City, Country
@@ -511,7 +635,7 @@ def make_master_ews(root_dir=root_ews_dir):
                     new_loc = x + ', ' + d
                 return new_loc
 
-            missing_df['round_loc'] = missing_df.loc[:, 'round_loc'].apply(fill_country)
+            missing_df.loc[:, 'round_loc'] = missing_df['round_loc'].apply(fill_country)
 
             return missing_df
 
@@ -520,7 +644,7 @@ def make_master_ews(root_dir=root_ews_dir):
         df_to_fill = fill_missing_sponsors(df_to_fill)
         df_to_fill = fill_missing_round_country(df_to_fill)
         df_to_fill = fill_missing_hometown(df_to_fill)
-        df_to_fill = df_to_fill[columns]
+        df_to_fill = df_to_fill[columns].copy(deep=True)
         add_columns()
 
         return df_to_fill
@@ -537,3 +661,5 @@ def make_master_ews(root_dir=root_ews_dir):
 
 
 make_master_ews()
+
+
