@@ -50,6 +50,9 @@ def make_master_ews(root_dir=root_ews_dir):
 
         # Account for first race where it was Saturday ad Sunday. Fix this eventually.
         df_to_fill['num_stages'].replace(0, 2, inplace=True)
+        print(df_to_fill['stages_raced'])
+        p = df_to_fill.apply(lambda x: print(max(x['stages_raced'].split(', ')), x['round_loc'], x['year']), axis=1)
+        #ToDo: Get EWS Site Stages raced working
 
         rider_list = df_to_fill.groupby('name').sum().index.tolist()
         year_list = ['2013', '2014', '2015', '2016', '2017']
@@ -490,10 +493,10 @@ def make_master_ews(root_dir=root_ews_dir):
                 .sort_values(['year', 'round_num', 'overall_points'], ascending=[1, 1, 0])\
                 .groupby(['year', 'round_num']).cumcount() + 1
 
-            df_to_fill.loc[:, 'dif'] = df_to_fill.apply(lambda x: x['finish_time'] - x['time_after_' + str(x['num_stages'])], axis=1)
+            df_to_fill.loc[:, 'dif'] = df_to_fill.apply(lambda x: x['finish_time'] - x['time_after_' + str(max(x['stages_raced']))], axis=1)
             df_to_fill.loc[:, 'last'] = df_to_fill.apply(lambda x: x['time_after_' + str(x['num_stages'])], axis=1)
             #pop = df_to_fill.apply(lambda x: x['time_after_' + str(x['num_stages'])], axis=1)
-            print(df_to_fill.loc[df_to_fill['dif'] != datetime.timedelta(0), ['dif', 'last', 'finish_time']])
+            print(df_to_fill.loc[(df_to_fill['dif'] != datetime.timedelta(0)) & (df_to_fill['dif'] != datetime.timedelta(1)), ['dif', 'last', 'finish_time']])
 
         add_columns()
         def fill_missing_sponsors(missing_df):
