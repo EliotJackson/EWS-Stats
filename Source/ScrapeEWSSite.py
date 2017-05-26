@@ -134,11 +134,12 @@ def clean_ews_results(sex='m'):
             whistler_rider_details[0:2] = [' '.join(whistler_rider_details[0:2])]
         whistler_rider_details[0] = unidecode(whistler_rider_details[0])
 
+        # Remove parentheses around finish position
         whistler_rider_details[2:13:2] = [x.translate(str.maketrans('', '', '()')) for x in whistler_rider_details[2:13:2]]
 
         whistler_list.append(whistler_rider_details)
 
-    print('Cleaning Rotorua Text')
+    print('Cleaning Rotorua Text...')
     rotorua_list = []
 
     for rider_idx, rider in enumerate(rotorua_riders.split('\n')[1:-1]):
@@ -264,6 +265,7 @@ def whistler_name_match(whistler_list, master_rider_list, sex='m'):
     whistler_df["dsq"] = False
     whistler_df["out_at_stage"] = 0
     whistler_df["num_stages"] = 5
+    whistler_df["stages_raced"] = '1, 2, 3, 4, 5'
 
     # Put finish_time in H:M:S:m format
     whistler_df['finish_time'] = whistler_df['finish_time'].apply(lambda x: '0:' + x if x.count(':') < 2 else x)
@@ -326,6 +328,7 @@ def rotorua_name_match(rotorua_list, master_rider_list, sex='m'):
     rotorua_df["stage8_position"] = 'Not Raced'
     rotorua_df["penalties"] = ''
     rotorua_df["num_stages"] = 7
+    rotorua_df["stages_raced"] = '1, 2, 3, 4, 5, 6, 7'
 
     # 6969 is manually inputed NaN
     rotorua_df.replace('6969', '', inplace=True)
