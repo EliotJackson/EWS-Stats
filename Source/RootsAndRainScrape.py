@@ -10,6 +10,7 @@ The base of our analysis. We scrape all of the EWS results from the Roots and Ra
 to CSV's to be aggregated to a master.csv or analyzed individually.
 '''
 
+
 ews_url = 'https://www.rootsandrain.com/organiser137/ews'
 root_ews_dir = r'C:\EWSData'
 
@@ -80,6 +81,8 @@ def get_ews_results(url, sex='m'):
     stage7_position = []
     stage8_time = []
     stage8_position = []
+    stage9_time = []
+    stage9_position = []
     finish_time = []
     time_behind = []
     penalties = []
@@ -93,8 +96,9 @@ def get_ews_results(url, sex='m'):
     columns = ["year", "round_num", "round_loc", "finish_position", "overall_position", "name", "country", "sponsor",
                "stage1_time", "stage1_position", "stage2_time", "stage2_position", "stage3_time", "stage3_position",
                "stage4_time", "stage4_position", "stage5_time", "stage5_position", "stage6_time", "stage6_position",
-               "stage7_time", "stage7_position", "stage8_time", "stage8_position", "finish_time",
-               "time_behind", "penalties", "dnf", "dns", "dsq", "out_at_stage", "num_stages", "stages_raced"]
+               "stage7_time", "stage7_position", "stage8_time", "stage8_position", "stage9_time", "stage9_position",
+               "finish_time", "time_behind", "penalties", "dnf", "dns", "dsq", "out_at_stage",
+               "num_stages", "stages_raced"]
 
     if sex == 'm':
         url = 'https://www.rootsandrain.com' + url
@@ -220,6 +224,7 @@ def get_ews_results(url, sex='m'):
         if '1' in stage_number_list or 'Saturday' in table_columns:
             if 'Saturday' in table_columns and len(stage_number_list) == 0:
                 stage_number_list.append('1')
+                num_stages += 1
 
             # Stage was raced
             if 'dummy' not in rider[6]:
@@ -249,6 +254,7 @@ def get_ews_results(url, sex='m'):
         if '2' in stage_number_list or 'Sunday' in table_columns:
             if 'Sunday' in table_columns and len(stage_number_list) == 1:
                 stage_number_list.append('2')
+                num_stages += 1
 
             if 'dummy' not in rider[6 + stage_count]:
                 stage2_time.append(re.search('(^\d.*?|<strong>.*?) <',
@@ -375,6 +381,24 @@ def get_ews_results(url, sex='m'):
             stage8_time.append('Not Raced')
             stage8_position.append('Not Raced')
 
+        if '9' in stage_number_list:
+            if 'dummy' not in rider[6 + stage_count]:
+                stage9_time.append(re.search('(^\d.*?|<strong>.*?) <',
+                                             rider[6 + stage_count]).group(1).replace('<strong>', '').replace('h', ':'))
+                stage9_position.append(int(re.search('\((\d+)\)', rider[6 + stage_count]).group(1)))
+            else: #re.search('>(.*?)<', rider[6 + stage_count]).group(1)
+                stage9_time.append(None)
+                stage9_position.append(None)
+
+                if out_at == 0:
+                    out_at = 9
+                    out_at_stage.append(out_at)
+
+            stage_count += 1
+        else:
+            stage9_time.append('Not Raced')
+            stage9_position.append('Not Raced')
+
         # If the rider never went out add a 0
         if out_at == 0:
             out_at_stage.append(out_at)
@@ -410,8 +434,8 @@ def get_ews_results(url, sex='m'):
                   overall_position, name, country, sponsor, stage1_time, stage1_position,
                   stage2_time, stage2_position, stage3_time, stage3_position, stage4_time, stage4_position,
                   stage5_time, stage5_position, stage6_time, stage6_position, stage7_time, stage7_position,
-                  stage8_time, stage8_position, finish_time, time_behind, penalties, dnf, dns, dsq,
-                  out_at_stage, num_stages_list, stages_raced]
+                  stage8_time, stage8_position, stage9_time, stage9_position,
+                  finish_time, time_behind, penalties, dnf, dns, dsq, out_at_stage, num_stages_list, stages_raced]
 
     # Transpose Dataframe
     rider_df = pd.DataFrame(stats_list).T
