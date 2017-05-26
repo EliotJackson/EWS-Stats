@@ -88,19 +88,19 @@ def get_ews_results(url, sex='m'):
     dsq = []
     out_at_stage = []
     num_stages_list = []
+    stages_raced = []
 
     columns = ["year", "round_num", "round_loc", "finish_position", "overall_position", "name", "country", "sponsor",
                "stage1_time", "stage1_position", "stage2_time", "stage2_position", "stage3_time", "stage3_position",
                "stage4_time", "stage4_position", "stage5_time", "stage5_position", "stage6_time", "stage6_position",
                "stage7_time", "stage7_position", "stage8_time", "stage8_position", "finish_time",
-               "time_behind", "penalties", "dnf", "dns", "dsq", "out_at_stage", "num_stages"]
+               "time_behind", "penalties", "dnf", "dns", "dsq", "out_at_stage", "num_stages", "stages_raced"]
 
     if sex == 'm':
         url = 'https://www.rootsandrain.com' + url
     else:
         url = 'https://www.rootsandrain.com' + url + 'results/filters/f/'
 
-    print(url)
     url = urlopen(url)
     soup = bs4.BeautifulSoup(url, 'lxml')
 
@@ -218,6 +218,9 @@ def get_ews_results(url, sex='m'):
         # What stages we have data for and add those. The columns will still be sequential in the html
         # We look for 'dummy' to indicate DNF on that stage. <strong> indicates stage win which we don't need
         if '1' in stage_number_list or 'Saturday' in table_columns:
+            if 'Saturday' in table_columns and len(stage_number_list) == 0:
+                stage_number_list.append('1')
+
             # Stage was raced
             if 'dummy' not in rider[6]:
                 # Rider finished stage
@@ -244,6 +247,9 @@ def get_ews_results(url, sex='m'):
             stage1_position.append('Not Raced')
 
         if '2' in stage_number_list or 'Sunday' in table_columns:
+            if 'Sunday' in table_columns and len(stage_number_list) == 1:
+                stage_number_list.append('2')
+
             if 'dummy' not in rider[6 + stage_count]:
                 stage2_time.append(re.search('(^\d.*?|<strong>.*?) <',
                                              rider[6 + stage_count]).group(1).replace('<strong>', '').replace('h', ':'))
@@ -387,6 +393,8 @@ def get_ews_results(url, sex='m'):
             dns.append(False)
             dnf.append(False)
 
+    # Turn the ['1', '2'] into 1, 2
+    stage_number_list = str(stage_number_list).translate(str.maketrans('', '', '[]\''))
 
     # Since the EWS info doesnt change per rider, create a list the
     # Same length as our results list with each constant
@@ -395,6 +403,7 @@ def get_ews_results(url, sex='m'):
         ews_round_num_list.append(ews_round_num)
         ews_year_list.append(ews_year)
         num_stages_list.append(num_stages)
+        stages_raced.append(stage_number_list)
 
     # Make a dataframe and export it to a csv
     stats_list = [ews_year_list, ews_round_num_list, ews_round_loc_list, finish_position,
@@ -402,7 +411,7 @@ def get_ews_results(url, sex='m'):
                   stage2_time, stage2_position, stage3_time, stage3_position, stage4_time, stage4_position,
                   stage5_time, stage5_position, stage6_time, stage6_position, stage7_time, stage7_position,
                   stage8_time, stage8_position, finish_time, time_behind, penalties, dnf, dns, dsq,
-                  out_at_stage, num_stages_list]
+                  out_at_stage, num_stages_list, stages_raced]
 
     # Transpose Dataframe
     rider_df = pd.DataFrame(stats_list).T
