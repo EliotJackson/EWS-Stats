@@ -7,11 +7,30 @@ import pickle
 import datetime as datetime
 
 #pd.set_option('display.max_colwidth', -1)
-pd.set_option('display.max_rows', -1)
+#pd.set_option('display.max_rows', -1)
+
+
+with open(r'C:\EWSData\2014Chile.txt', 'rb') as fp:
+    chile_results = pickle.load(fp)
+
+chile_results = chile_results.split('\n')[1:-1]
+
+chile_results_list = []
+for rider in chile_results:
+    chile_results_list.append(rider.split('\t'))
+
+chile_results_list[0][2:-3:2] = ['stage' + str(i+1) + '_time' for i, x in enumerate(chile_results_list[0][2:-3:2])]
+chile_results_list[0][-2] = 'finish_time'
+
+chile_df = pd.DataFrame(chile_results_list[1:], columns=chile_results_list[0])
+
+chile_df = chile_df.loc[:, 'stage1_time':'finish_time':2].copy(deep=True)
+
 
 root_ews_dir = r'C:\EWSData'
 
 # ToDo: Compare cumulative stage time to finish time
+# ToDo: add stage 9
 
 def make_master_ews(root_dir=root_ews_dir):
     """
@@ -27,11 +46,13 @@ def make_master_ews(root_dir=root_ews_dir):
                      [2017, 3], [2017, 5], [2017, 6], [2017, 8]]
 
 
-    columns = ["year", "round_num", "round_loc", "finish_position", "overall_position", "name", "city", "country",
-               "sponsor", "factory", "stage1_time", "stage1_position", "stage2_time", "stage2_position", "stage3_time",
-               "stage3_position", "stage4_time", "stage4_position", "stage5_time", "stage5_position", "stage6_time",
-               "stage6_position", "stage7_time", "stage7_position", "stage8_time", "stage8_position", "finish_time",
-               "time_behind", "penalties", "dnf", "dns", "dsq", "out_at_stage", "num_stages"]
+    columns = ["year", "round_num", "round_loc", "finish_position","finish_time",
+               "overall_position", "name", "city", "country", "sponsor", "factory", "stage1_time", "stage1_position",
+               "stage2_time", "stage2_position", "stage3_time", "stage3_position", "stage4_time", "stage4_position",
+               "stage5_time", "stage5_position", "stage6_time", "stage6_position", "stage7_time", "stage7_position",
+               "stage8_time", "stage8_position", "stage9_time", "stage9_position", "time_behind",
+               "penalties", "dnf", "dns", "dsq", "out_at_stage", "num_stages", "stages_raced"]
+
 
     all_files = glob.glob(os.path.join(root_ews_dir, '**', '*.csv'))
 
@@ -48,65 +69,10 @@ def make_master_ews(root_dir=root_ews_dir):
 
     def fill_missing_and_clean(df_to_fill):
 
-        # Account for first race where it was Saturday ad Sunday. Fix this eventually.
-        df_to_fill['num_stages'].replace(0, 2, inplace=True)
-        print(df_to_fill['stages_raced'])
-        p = df_to_fill.apply(lambda x: print(max(x['stages_raced'].split(', ')), x['round_loc'], x['year']), axis=1)
-        #ToDo: Get EWS Site Stages raced working
-
         rider_list = df_to_fill.groupby('name').sum().index.tolist()
         year_list = ['2013', '2014', '2015', '2016', '2017']
         round_list = ['1', '2', '3', '4', '5', '6', '7', '8']
-        stage_list = ['1', '2', '3', '4', '5', '6', '7', '8']
-        def to_delta1(race_time):
-            """
-            Convert any time we have in out dataframe to timedelta format
-
-            :param race_time: Time to convert
-            :return: Timedelta
-            """
-
-            race_time = str(race_time)
-
-            if race_time == 'nan':
-                race_time = '99999'
-
-            # Check for 'Not Raced', if we get it set timedelta to 1 day to for easy identification
-            # NaN values are set to 0 timedelta for identification
-            if not any(character.isalpha() for character in race_time):
-                if race_time.count(':') > 1:
-                    # '2:43:20.334'
-                    mins = int(race_time.split(':')[1])
-                    hrs = int(race_time.split(':')[0])
-                    secs = int(race_time.split(':')[-1].split('.')[0])
-                    ms = float(race_time.split('.')[1])
-                else:
-                    if race_time.count(':') == 1:
-                        # '43:20.334'
-                        hrs = 0
-                        mins = int(race_time.split(':')[0])
-                        secs = int(race_time.split(':')[-1].split('.')[0])
-                        ms = float(race_time.split('.')[1])
-                    elif (race_time.count(':') == 0) & (race_time.count('.') == 1):
-                        # '20.334'
-                        hrs = 0
-                        mins = 0
-                        secs = int(race_time.split('.')[0])
-                        ms = float(race_time.split('.')[1])
-                    else:
-                        # '0' or penalty
-                        hrs = 0
-                        mins = 0
-                        secs = int(race_time)
-                        ms = 0
-
-                delta = datetime.timedelta(hours=hrs, minutes=mins, seconds=secs, milliseconds=ms)
-                print(delta)
-            else:
-
-                delta = datetime.timedelta(1)
-
-            return delta
+        stage_list = ['1', '2', '3', '4', '5', '6', '7', '8', '9']
 
         def to_delta(race_time):
             """
@@ -116,7 +82,7 @@ def make_master_ews(root_dir=root_ews_dir):
             :return: Timedelta
             """
 
-            race_time = str(race_time)
+            race_time = str(race_time).replace('', 'nan')
 
             # Check for 'Not Raced', if we get it set timedelta to 1 day to for easy identification
             # NaN values are set to 0 timedelta for identification
@@ -193,8 +159,48 @@ def make_master_ews(root_dir=root_ews_dir):
             """
             Add any extra features we need for analysis
             """
+
+            '''
+            Inject EWS Site data for Chile. Still need to do Finish_time column
+            For some reason not showing any time errors already. The EWS Site mistake is in this race. posiotn 22
+            '''
+            mask = (df_to_fill['year'] == 2014) & (df_to_fill['round_num'] == 1) & (df_to_fill['finish_position'] < 82)
+            new_chile = chile_df.iloc[:-4, :-1].copy()
+            df_to_fill.loc[mask, 'stage1_time':'stage6_time':2] = new_chile.values
+
+            mask2 = (df_to_fill['year'] == 2014) & (df_to_fill['round_num'] == 1)
+            new_chile2 = chile_df.iloc[84, :-1].copy()
+            df_to_fill.ix[1167, 'stage1_time':'stage6_time':2] = new_chile2.values
+
+            new_chile3 = chile_df.iloc[81:84, :-1].copy()
+            df_to_fill.ix[1168:1170, 'stage1_time':'stage6_time':2] = new_chile3.values
+
+
+            #print(df_to_fill.loc[mask2, 'stage1_time':'stage6_time':2].tail())
+            #print(new_chile3.tail())
+
+            # Add default columns and remove 'Not Raced'
             df_to_fill.loc[:, 'overall_points'] = 0
             df_to_fill.loc[:, 'overall_time'] = datetime.timedelta(0)
+            df_to_fill.loc[:, :] = df_to_fill.applymap(lambda x: np.nan if x == 'Not Raced' else x)
+
+            # Check if a rider finished a race
+            df_to_fill.loc[:, 'finished'] = df_to_fill.loc[:, ['dnf', 'dns', 'dsq']]\
+                .apply(sum, axis=1)\
+                .apply(lambda x: 'TRUE' if x == 0 else 'FALSE')
+
+            # Get a list of the stage finishes
+            stage_results = list(df_to_fill.loc[:, 'stage1_position':'stage9_position':2])
+            df_to_fill['stage_finishes'] = df_to_fill.loc[:, stage_results]\
+                .astype(str)\
+                .apply(lambda x: ', '.join(x), axis=1)
+
+            # Get the average stage finish for that rider
+            df_to_fill['avg_stage_finish'] =\
+                df_to_fill.loc[:, stage_results].apply(np.mean, axis=1)
+
+            # For Joe
+            print(df_to_fill[['name', 'year', 'round_loc', 'avg_stage_finish', 'stage_finishes']].nsmallest(2, 'avg_stage_finish'))
 
             print('Converting to Timedelta...')
             # Convert any times we have to timedelta
@@ -204,6 +210,7 @@ def make_master_ews(root_dir=root_ews_dir):
             df_to_fill.loc[:, 'finish_time'] = df_to_fill.loc[:, 'finish_time'].apply(lambda x: to_delta(x))
             df_to_fill.loc[:, 'time_behind'] = df_to_fill.loc[:, 'time_behind'].apply(lambda x: to_delta(x))
             df_to_fill.loc[:, 'penalties'] = df_to_fill.loc[:, 'penalties'].apply(lambda x: to_delta(x))
+
 
 
             print('Adding Gap and Average Time of Top 10 Columns...')
@@ -238,13 +245,13 @@ def make_master_ews(root_dir=root_ews_dir):
             new_pivot = df_to_fill.pivot('name_year', 'round_num', 'round_num')
 
             '''
-            round_num                      1    2    3    4    5    6    7    8
+            round_num                      1    2    3    4    5    6    7    8    9  
             name_year
-            ??? DI PIERDOMENICO 2013     NaN  NaN  NaN  NaN  NaN  NaN  7.0  NaN
-            Aaron BRADFORD 2013          NaN  NaN  NaN  4.0  5.0  NaN  7.0  NaN
-            Aaron BRADFORD 2014          1.0  2.0  3.0  4.0  5.0  6.0  7.0  NaN
-            Aaron BRADFORD 2015          NaN  NaN  NaN  NaN  NaN  6.0  NaN  NaN
-            Aaron BRADFORD 2016          NaN  NaN  NaN  NaN  5.0  6.0  NaN  NaN
+            ??? DI PIERDOMENICO 2013     NaN  NaN  NaN  NaN  NaN  NaN  7.0  NaN  NaN
+            Aaron BRADFORD 2013          NaN  NaN  NaN  4.0  5.0  NaN  7.0  NaN  NaN
+            Aaron BRADFORD 2014          1.0  2.0  3.0  4.0  5.0  6.0  7.0  NaN  NaN
+            Aaron BRADFORD 2015          NaN  NaN  NaN  NaN  NaN  6.0  NaN  NaN  NaN
+            Aaron BRADFORD 2016          NaN  NaN  NaN  NaN  5.0  6.0  NaN  NaN  NaN
             '''
 
             # Apply applies whatever is in the ( ) to every row in the dataset
@@ -402,7 +409,12 @@ def make_master_ews(root_dir=root_ews_dir):
                         lambda x: stages_per_day(x, 2))
 
             print('Add Current Race Position Throughout Day...')
-            # Add current position columns
+            # Add running total time for each rider throughout the day
+            # Stages that arent raced are set to Timedelta(1). We know a race only had 5 stages if the stage 6 times
+            # are 1 day + stagetime so we can use that as a end marker and set the rest of the time_after_ columns to 0.
+            # Sometimes stages get canceled so if the max(stages_raced) > current stage in loop then we know it was part
+            # of the race and was either raced or canceled so set that to Timedelta(0) to not affect our end marker
+
             total_time = datetime.timedelta(0)
 
             def stage_not_raced(x):
@@ -411,9 +423,18 @@ def make_master_ews(root_dir=root_ews_dir):
                 else:
                     return x
 
-            # Add running total time for each rider throughout the day
+            def stage_canceled(x):
+                if x == datetime.timedelta(1):
+                    return datetime.timedelta(0)
+                else:
+                    return x
+
             for stage_num in stage_list:
-                total_time += df_to_fill['stage' + stage_num + '_time']
+                total_time += df_to_fill.apply(lambda x:
+                                               stage_canceled(x['stage' + stage_num + '_time'])
+                                               if max(x['stages_raced'].split(', ')) >= stage_num
+                                               else x['stage' + stage_num + '_time'], axis=1)
+
                 df_to_fill.loc[:, 'time_after_' + stage_num] = total_time.apply(lambda x: stage_not_raced(x))
 
             # Add position columns after the time column
@@ -493,10 +514,21 @@ def make_master_ews(root_dir=root_ews_dir):
                 .sort_values(['year', 'round_num', 'overall_points'], ascending=[1, 1, 0])\
                 .groupby(['year', 'round_num']).cumcount() + 1
 
-            df_to_fill.loc[:, 'dif'] = df_to_fill.apply(lambda x: x['finish_time'] - x['time_after_' + str(max(x['stages_raced']))], axis=1)
-            df_to_fill.loc[:, 'last'] = df_to_fill.apply(lambda x: x['time_after_' + str(x['num_stages'])], axis=1)
+
+            p = [datetime.timedelta(0), datetime.timedelta(1)]
+
+
+
+            df_to_fill.loc[:, 'dif'] = df_to_fill.apply(lambda x: x['finish_time'] - x['time_after_' + str(max(x['stages_raced'].split(', ')))], axis=1)
+            df_to_fill.loc[:, 'last'] = df_to_fill.apply(lambda x: x['time_after_' + str(max(x['stages_raced'].split(', ')))], axis=1)
+            df_to_fill.loc[:, 'max'] = df_to_fill['stages_raced'].apply(lambda x: str(max(x.split(', '))))
             #pop = df_to_fill.apply(lambda x: x['time_after_' + str(x['num_stages'])], axis=1)
-            print(df_to_fill.loc[(df_to_fill['dif'] != datetime.timedelta(0)) & (df_to_fill['dif'] != datetime.timedelta(1)), ['dif', 'last', 'finish_time']])
+
+            # Chile is truncated at 1 decimal point
+            print(df_to_fill.loc[(~df_to_fill['dif'].isin(p)) & (df_to_fill['finish_time'] != datetime.timedelta(1)) & (df_to_fill['penalties'] == datetime.timedelta(days=1)), ['dif', 'last', 'max', 'finish_time']])
+            
+            os.exit(1)
+
 
         add_columns()
         def fill_missing_sponsors(missing_df):
